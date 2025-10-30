@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Platform, Pressable, SafeAreaView, ActivityIndicator, Image as RNImage } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Box } from '@/components/ui/box';
 import { VStack } from '@/components/ui/vstack';
@@ -44,10 +44,18 @@ export default function HomeScreen() {
   const [error, setError] = useState('');
   const [isSearchMode, setIsSearchMode] = useState(false);
 
-  // Fetch user's favorite recipes
+  // Fetch user's favorite recipes on mount
   useEffect(() => {
     fetchFavorites();
   }, []);
+
+  // Refresh favorites when screen comes into focus (e.g., returning from recipe details)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 Home screen focused, syncing favorites...');
+      syncFavoritesWithoutLoading();
+    }, [])
+  );
 
   const fetchFavorites = async () => {
     try {
@@ -88,6 +96,64 @@ export default function HomeScreen() {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Sync favorites without showing loading state (for when returning from recipe details)
+  const syncFavoritesWithoutLoading = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) return;
+
+      const response = await fetch(API_ENDPOINTS.FAVORITES, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) return;
+
+      const result = await response.json();
+      const fetchedFavorites = result.data || [];
+      
+      console.log('📊 Syncing favorites. Fetched:', fetchedFavorites.length, 'Suggested recipes:', suggestedRecipes.length);
+      
+      // Update favorites list
+      setFavorites(fetchedFavorites);
+
+      // Update suggested recipes to reflect favorite status changes
+      if (suggestedRecipes.length > 0) {
+        console.log('🔄 Updating suggested recipes favorite status...');
+        setSuggestedRecipes(prev => {
+          const updated = prev.map(recipe => {
+            // Check if this recipe is in the favorites list (match by name - most reliable since IDs can change)
+            const matchingFavorite = fetchedFavorites.find(
+              (fav: Recipe) => fav.name === recipe.name
+            );
+            
+            if (matchingFavorite) {
+              // Mark as favorited with the correct favoriteId and update ID if it changed
+              console.log('  ✅ Recipe', recipe.name, 'is favorited. FavoriteId:', matchingFavorite.favoriteId, 'RecipeId:', matchingFavorite.id);
+              return { 
+                ...recipe, 
+                id: matchingFavorite.id, // Update to real database ID
+                favoriteId: matchingFavorite.favoriteId 
+              };
+            } else if (recipe.favoriteId) {
+              // Was favorited before but no longer in favorites - remove favoriteId
+              console.log('  ❌ Recipe', recipe.name, 'removed from favorites');
+              return { ...recipe, favoriteId: undefined };
+            }
+            
+            return recipe;
+          });
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error('Sync favorites error:', err);
     }
   };
 
@@ -264,6 +330,8 @@ export default function HomeScreen() {
         name: recipe.name,
         cooking_time: recipe.cooking_time,
         image_url: recipe.image_url,
+        ingredients: recipe.ingredients || [],
+        instructions: recipe.instructions || [],
         favoriteId: optimisticId,
       },
     ]);
@@ -315,7 +383,13 @@ export default function HomeScreen() {
       setSuggestedRecipes(prev => prev.map(r => (r.id === recipe.id ? { ...r, favoriteId: realFavoriteId, id: realRecipeId } : r)));
 
       setFavorites(prev =>
-        prev.map(f => (f.favoriteId === optimisticId ? { ...f, favoriteId: realFavoriteId, id: realRecipeId } : f))
+        prev.map(f => (f.favoriteId === optimisticId ? { 
+          ...f, 
+          favoriteId: realFavoriteId, 
+          id: realRecipeId,
+          ingredients: recipe.ingredients || [],
+          instructions: recipe.instructions || []
+        } : f))
       );
     } catch (err) {
       // revert optimistic changes on error
@@ -383,64 +457,63 @@ export default function HomeScreen() {
   };
 
   // Navigate to a recipe details page
-  const handleFavoritePress = (id: string) => {
-    console.log('Navigating to recipe:', id);
-    //
-    // TODO: Update route as per your file structure
-    //
-    // router.push(`/recipe/${id}` as any);
+  const handleFavoritePress = (recipe: Recipe) => {
+    router.push({
+      pathname: '/recipe-details',
+      params: {
+        recipe: JSON.stringify(recipe)
+      }
+    } as any);
   };
 
   return (
-    // Use SafeAreaView to avoid status bar overlap
-    // Assuming bg-background-0 is your light '#eeeeee' color
     <SafeAreaView className="flex-1 bg-background-0">
-      {/* ScrollView for the list content */}
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Main content container with padding and extra top padding */}
-        <VStack space="xl" className="p-6 pt-12">
-          {/* Search Bar */}
-          <Input
-            className="bg-background-100 border-outline-200 rounded-full"
-            size="lg"
-          >
-            <InputField
-              placeholder="What do you feel like eating?"
-              value={searchQuery}
-              onChangeText={(text) => {
-                setSearchQuery(text);
-                // If text is cleared, return to favorites mode
-                if (!text.trim()) {
-                  setIsSearchMode(false);
-                  setSuggestedRecipes([]);
-                }
-              }}
-              onSubmitEditing={handleSearch}
-              returnKeyType="search"
-              className="text-typography-950"
-              placeholderTextColor="rgb(160 160 160)"
-              editable={!searching}
-            />
-            <InputSlot onPress={searchQuery.trim() ? handleClearSearch : handleSearch} className="pr-3">
-              {searching ? (
-                <ActivityIndicator size="small" color="#76ABAE" />
-              ) : searchQuery.trim() ? (
-                <InputIcon as={X} className="text-typography-700" />
-              ) : (
-                <InputIcon as={Search} className="text-typography-700" />
-              )}
-            </InputSlot>
-          </Input>
+      <VStack className="flex-1 p-6 pt-12" space="xl">
+        {/* Search Bar - Static */}
+        <Input
+          className="bg-background-100 border-outline-200 rounded-full"
+          size="lg"
+        >
+          <InputField
+            placeholder="What do you feel like eating?"
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              // If text is cleared, return to favorites mode
+              if (!text.trim()) {
+                setIsSearchMode(false);
+                setSuggestedRecipes([]);
+              }
+            }}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+            className="text-typography-950"
+            placeholderTextColor="rgb(160 160 160)"
+            editable={!searching}
+          />
+          <InputSlot onPress={searchQuery.trim() ? handleClearSearch : handleSearch} className="pr-3">
+            {searching ? (
+              <ActivityIndicator size="small" color="#76ABAE" />
+            ) : searchQuery.trim() ? (
+              <InputIcon as={X} className="text-typography-700" />
+            ) : (
+              <InputIcon as={Search} className="text-typography-700" />
+            )}
+          </InputSlot>
+        </Input>
 
-          {/* Recipes Section - Title changes based on mode */}
+        {/* Title - Static */}
+        <Heading size="2xl" className="text-typography-950">
+          {isSearchMode ? 'Suggested recipes' : 'Favorites'}
+        </Heading>
+
+        {/* Scrollable Recipes Section */}
+        <ScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <VStack space="md">
-            <Heading size="2xl" className="text-typography-950">
-              {isSearchMode ? 'Suggested recipes' : 'Favorites'}
-            </Heading>
-
             {/* Loading State */}
             {(loading || searching) ? (
               <View className="py-8 items-center">
@@ -464,7 +537,7 @@ export default function HomeScreen() {
                   {suggestedRecipes.map((item) => (
                     <Pressable
                       key={item.id}
-                      onPress={() => handleFavoritePress(item.id)}
+                      onPress={() => handleFavoritePress(item)}
                       className="w-full"
                     >
                       {({ pressed }: { pressed: boolean }) => (
@@ -550,7 +623,7 @@ export default function HomeScreen() {
                   {favorites.map((item) => (
                   <Pressable
                     key={item.id}
-                    onPress={() => handleFavoritePress(item.id)}
+                    onPress={() => handleFavoritePress(item)}
                     className="w-full"
                   >
                     {({ pressed }: { pressed: boolean }) => (
@@ -603,8 +676,8 @@ export default function HomeScreen() {
               )
             )}
           </VStack>
-        </VStack>
-      </ScrollView>
+        </ScrollView>
+      </VStack>
     </SafeAreaView>
   );
 }

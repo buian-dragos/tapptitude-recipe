@@ -52,7 +52,7 @@ export default function LoginScreen() {
       console.log('Login successful, token:', token);
       
       // Navigate to main app
-      router.replace('/(tabs)' as any);
+      router.replace('/home');
     } catch (err) {
       setError('Network error. Please try again.');
       console.error('Login error:', err);

@@ -17,7 +17,15 @@ router.get('/favorites', authenticateUser, async (req, res) => {
           id,
           name,
           cooking_time,
-          image_url
+          image_url,
+          recipe_ingredients (
+            ingredient_text,
+            order_index
+          ),
+          recipe_steps (
+            step_number,
+            step_text
+          )
         )
       `)
       .eq('user_id', userId)
@@ -27,10 +35,19 @@ router.get('/favorites', authenticateUser, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    // Transform the data to flatten recipe object
+    // Transform the data to flatten recipe object and include ingredients/instructions
     const favorites = data.map(fav => ({
       favoriteId: fav.id,
-      ...fav.recipe
+      id: fav.recipe.id,
+      name: fav.recipe.name,
+      cooking_time: fav.recipe.cooking_time,
+      image_url: fav.recipe.image_url,
+      ingredients: fav.recipe.recipe_ingredients
+        ?.sort((a, b) => a.order_index - b.order_index)
+        .map(i => i.ingredient_text) || [],
+      instructions: fav.recipe.recipe_steps
+        ?.sort((a, b) => a.step_number - b.step_number)
+        .map(s => s.step_text) || []
     }));
 
     res.json({ data: favorites });
@@ -118,6 +135,11 @@ router.post('/favorites', authenticateUser, async (req, res) => {
     const userId = req.user.id;
     const { name, cooking_time, image_url, ingredients, instructions } = req.body;
 
+    console.log('🟢 POST /favorites called by user:', userId);
+    console.log('   Recipe name:', name);
+    console.log('   Ingredients count:', ingredients?.length || 0);
+    console.log('   Instructions count:', instructions?.length || 0);
+
     // First, create or get the recipe
     let recipeId;
     
@@ -130,8 +152,10 @@ router.post('/favorites', authenticateUser, async (req, res) => {
 
     if (existingRecipe) {
       recipeId = existingRecipe.id;
+      console.log('   Recipe already exists with ID:', recipeId);
     } else {
       // Create new recipe
+      console.log('   Creating new recipe in database...');
       const { data: newRecipe, error: recipeError } = await supabase
         .from('recipes')
         .insert([{
@@ -147,6 +171,7 @@ router.post('/favorites', authenticateUser, async (req, res) => {
       }
 
       recipeId = newRecipe.id;
+      console.log('   New recipe created with ID:', recipeId);
 
       // Add ingredients if provided
       if (ingredients && ingredients.length > 0) {
@@ -156,9 +181,13 @@ router.post('/favorites', authenticateUser, async (req, res) => {
           order_index: index
         }));
 
-        await supabase
+        const { error: ingredientsError } = await supabase
           .from('recipe_ingredients')
           .insert(ingredientRecords);
+        
+        if (ingredientsError) {
+          console.error('Error adding ingredients:', ingredientsError);
+        }
       }
 
       // Add instructions if provided
@@ -169,9 +198,13 @@ router.post('/favorites', authenticateUser, async (req, res) => {
           step_number: index + 1
         }));
 
-        await supabase
+        const { error: stepsError } = await supabase
           .from('recipe_steps')
           .insert(stepRecords);
+        
+        if (stepsError) {
+          console.error('Error adding steps:', stepsError);
+        }
       }
     }
 
@@ -184,10 +217,17 @@ router.post('/favorites', authenticateUser, async (req, res) => {
       .single();
 
     if (existingFavorite) {
-      return res.status(400).json({ error: 'Recipe already in favorites' });
+      console.log('   Recipe already in favorites, returning existing favorite ID:', existingFavorite.id);
+      return res.status(200).json({ 
+        data: {
+          favoriteId: existingFavorite.id,
+          recipeId: recipeId
+        }
+      });
     }
 
     // Add to favorites
+    console.log('   Adding recipe to favorites...');
     const { data: favorite, error: favoriteError } = await supabase
       .from('user_favorite_recipes')
       .insert([{
@@ -200,6 +240,8 @@ router.post('/favorites', authenticateUser, async (req, res) => {
     if (favoriteError) {
       return res.status(400).json({ error: favoriteError.message });
     }
+
+    console.log('   ✅ Successfully added to favorites with ID:', favorite.id);
 
     res.status(201).json({ 
       data: {
@@ -219,6 +261,9 @@ router.delete('/favorites/:favoriteId', authenticateUser, async (req, res) => {
     const userId = req.user.id;
     const { favoriteId } = req.params;
 
+    console.log('🔴 DELETE /favorites called by user:', userId);
+    console.log('   Favorite ID to remove:', favoriteId);
+
     const { error } = await supabase
       .from('user_favorite_recipes')
       .delete()
@@ -226,8 +271,11 @@ router.delete('/favorites/:favoriteId', authenticateUser, async (req, res) => {
       .eq('user_id', userId);
 
     if (error) {
+      console.error('   ❌ Error removing favorite:', error.message);
       return res.status(400).json({ error: error.message });
     }
+
+    console.log('   ✅ Successfully removed from favorites');
 
     res.json({ message: 'Removed from favorites' });
   } catch (error) {

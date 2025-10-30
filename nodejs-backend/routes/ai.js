@@ -19,11 +19,9 @@ router.post('/generate', authenticateUser, async (req, res) => {
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash-exp',
-      // The simple user input is fine here
       contents: prompt, 
       config: {
-        // 1. System Instruction: Simplified to focus on persona and quantity.
-        // The JSON part is now handled by the responseSchema below.
+        // 1. System Instruction
         systemInstruction: 'You are a helpful culinary assistant that must generate exactly 5 distinct cooking recipes based on the user\'s request. Do not include any introductory text, closing remarks, or explanations. Respond ONLY with the JSON object that follows the provided schema.',
         
         // 2. ENFORCE JSON OUTPUT

@@ -45,5 +45,6 @@ export const API_ENDPOINTS = {
   LOGOUT: `${API_CONFIG.BASE_URL}/api/auth/logout`,
   PROFILE: `${API_CONFIG.BASE_URL}/api/profile`,
   RECIPES: `${API_CONFIG.BASE_URL}/api/recipes`,
+  FAVORITES: `${API_CONFIG.BASE_URL}/api/favorites`,
   AI_GENERATE: `${API_CONFIG.BASE_URL}/api/ai/generate`,
 };

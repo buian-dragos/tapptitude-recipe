@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Input, InputField } from '@/components/ui/input';
 import { VStack } from '@/components/ui/vstack';
@@ -44,8 +45,10 @@ export default function LoginScreen() {
       const token = data.data.session.access_token;
       const user = data.data.user;
       
-      // You can use AuthContext here to save the token globally
-      // For now, just storing in a simple way
+      // Store token in AsyncStorage
+      await AsyncStorage.setItem('authToken', token);
+      await AsyncStorage.setItem('userId', user.id);
+      
       console.log('Login successful, token:', token);
       
       // Navigate to main app

@@ -3,6 +3,43 @@ const router = express.Router();
 const supabase = require('../supabase');
 const { authenticateUser } = require('../middleware/auth');
 
+// Get user's favorite recipes
+router.get('/favorites', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data, error } = await supabase
+      .from('user_favorite_recipes')
+      .select(`
+        id,
+        created_at,
+        recipe:recipes (
+          id,
+          name,
+          cooking_time,
+          image_url
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    // Transform the data to flatten recipe object
+    const favorites = data.map(fav => ({
+      favoriteId: fav.id,
+      ...fav.recipe
+    }));
+
+    res.json({ data: favorites });
+  } catch (error) {
+    console.error('Get favorites error:', error);
+    res.status(500).json({ error: 'Failed to fetch favorites' });
+  }
+});
+
 // Example: Get all recipes (protected)
 router.get('/recipes', authenticateUser, async (req, res) => {
   try {

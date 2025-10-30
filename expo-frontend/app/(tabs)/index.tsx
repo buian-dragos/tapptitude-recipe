@@ -1,98 +1,193 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { ScrollView, View, Platform, Pressable, SafeAreaView, ActivityIndicator } from 'react-native';
+import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
+import { Input, InputField, InputSlot, InputIcon } from '@/components/ui/input';
+import { Search, Heart, Image } from 'lucide-react-native';
+import { API_ENDPOINTS } from '@/config/api';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
-
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+interface Recipe {
+  id: string;
+  name: string;
+  cooking_time: number;
+  image_url: string | null;
+  favoriteId?: string;
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+export default function HomeScreen() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [favorites, setFavorites] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Fetch user's favorite recipes
+  useEffect(() => {
+    fetchFavorites();
+  }, []);
+
+  const fetchFavorites = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        router.replace('/login');
+        return;
+      }
+
+      const response = await fetch(API_ENDPOINTS.FAVORITES, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired, redirect to login
+          await AsyncStorage.removeItem('authToken');
+          await AsyncStorage.removeItem('userId');
+          router.replace('/login');
+          return;
+        }
+        setError(result.error || 'Failed to load favorites');
+        return;
+      }
+
+      setFavorites(result.data || []);
+    } catch (err) {
+      console.error('Fetch favorites error:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // You can replace this with a real search handler
+  const handleSearch = () => {
+    console.log('Searching for:', searchQuery);
+    //
+    // TODO: Implement search logic
+    // e.g., router.push(`/search?q=${searchQuery}`);
+    //
+  };
+
+  // Navigate to a recipe details page
+  const handleFavoritePress = (id: string) => {
+    console.log('Navigating to recipe:', id);
+    //
+    // TODO: Update route as per your file structure
+    //
+    // router.push(`/recipe/${id}` as any);
+  };
+
+  return (
+    // Use SafeAreaView to avoid status bar overlap
+    // Assuming bg-background-0 is your light '#eeeeee' color
+    <SafeAreaView className="flex-1 bg-background-0">
+      {/* ScrollView for the list content */}
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Main content container with padding and extra top padding */}
+        <VStack space="xl" className="p-6 pt-12">
+          {/* Search Bar */}
+          <Input
+            className="bg-background-100 border-outline-200 rounded-full"
+            size="lg"
+          >
+            <InputField
+              placeholder="What do you feel like eating?"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+              className="text-typography-950"
+              placeholderTextColor="rgb(160 160 160)"
+            />
+            <InputSlot onPress={handleSearch} className="pr-3">
+              <InputIcon as={Search} className="text-typography-700" />
+            </InputSlot>
+          </Input>
+
+          {/* Favorites Section */}
+          <VStack space="md">
+            <Heading size="2xl" className="text-typography-950">
+              Favorites
+            </Heading>
+
+            {/* Loading State */}
+            {loading ? (
+              <View className="py-8 items-center">
+                <ActivityIndicator size="large" color="#76ABAE" />
+              </View>
+            ) : error ? (
+              /* Error State */
+              <Box className="p-4 bg-error-100 rounded-lg">
+                <Text className="text-error-700 text-center">{error}</Text>
+              </Box>
+            ) : favorites.length === 0 ? (
+              /* Empty State */
+              <Box className="py-8 items-center">
+                <Text className="text-typography-600 text-center text-base">
+                  Add favourites by using the search feature
+                </Text>
+              </Box>
+            ) : (
+              /* Favorites List */
+              <VStack space="md">
+                {favorites.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => handleFavoritePress(item.id)}
+                    className="w-full"
+                  >
+                    {({ pressed }: { pressed: boolean }) => (
+                      <View
+                        className="p-3 rounded-lg bg-background-50 flex-row items-center"
+                        style={{
+                          opacity: pressed ? 0.7 : 1,
+                        }}
+                      >
+                        {/* Image Placeholder */}
+                        <Box className="w-16 h-16 bg-background-100 rounded-md justify-center items-center mr-3">
+                          <Image size={32} color="#9CA3AF" />
+                        </Box>
+
+                        {/* Text Content */}
+                        <VStack className="flex-1">
+                          <Text
+                            className="text-typography-900 font-semibold"
+                            size="md"
+                          >
+                            {item.name}
+                          </Text>
+                          <Text className="text-typography-600" size="sm">
+                            {item.cooking_time} min.
+                          </Text>
+                        </VStack>
+
+                        {/* Heart Icon */}
+                        {/* Using your teal color '#76abae' */}
+                        <Heart size={24} color="#76ABAE" fill="#76ABAE" />
+                      </View>
+                    )}
+                  </Pressable>
+                ))}
+              </VStack>
+            )}
+          </VStack>
+        </VStack>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

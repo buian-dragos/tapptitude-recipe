@@ -112,6 +112,130 @@ router.post('/recipes', authenticateUser, async (req, res) => {
   }
 });
 
+// Add recipe to favorites
+router.post('/favorites', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, cooking_time, image_url, ingredients, instructions } = req.body;
+
+    // First, create or get the recipe
+    let recipeId;
+    
+    // Check if recipe already exists by name
+    const { data: existingRecipe } = await supabase
+      .from('recipes')
+      .select('id')
+      .eq('name', name)
+      .single();
+
+    if (existingRecipe) {
+      recipeId = existingRecipe.id;
+    } else {
+      // Create new recipe
+      const { data: newRecipe, error: recipeError } = await supabase
+        .from('recipes')
+        .insert([{
+          name,
+          cooking_time,
+          image_url
+        }])
+        .select()
+        .single();
+
+      if (recipeError) {
+        return res.status(400).json({ error: recipeError.message });
+      }
+
+      recipeId = newRecipe.id;
+
+      // Add ingredients if provided
+      if (ingredients && ingredients.length > 0) {
+        const ingredientRecords = ingredients.map((ing, index) => ({
+          recipe_id: recipeId,
+          ingredient_text: ing,
+          order_index: index
+        }));
+
+        await supabase
+          .from('recipe_ingredients')
+          .insert(ingredientRecords);
+      }
+
+      // Add instructions if provided
+      if (instructions && instructions.length > 0) {
+        const stepRecords = instructions.map((step, index) => ({
+          recipe_id: recipeId,
+          step_text: step,
+          step_number: index + 1
+        }));
+
+        await supabase
+          .from('recipe_steps')
+          .insert(stepRecords);
+      }
+    }
+
+    // Check if already favorited
+    const { data: existingFavorite } = await supabase
+      .from('user_favorite_recipes')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('recipe_id', recipeId)
+      .single();
+
+    if (existingFavorite) {
+      return res.status(400).json({ error: 'Recipe already in favorites' });
+    }
+
+    // Add to favorites
+    const { data: favorite, error: favoriteError } = await supabase
+      .from('user_favorite_recipes')
+      .insert([{
+        user_id: userId,
+        recipe_id: recipeId
+      }])
+      .select()
+      .single();
+
+    if (favoriteError) {
+      return res.status(400).json({ error: favoriteError.message });
+    }
+
+    res.status(201).json({ 
+      data: {
+        favoriteId: favorite.id,
+        recipeId: recipeId
+      }
+    });
+  } catch (error) {
+    console.error('Add favorite error:', error);
+    res.status(500).json({ error: 'Failed to add favorite' });
+  }
+});
+
+// Remove recipe from favorites
+router.delete('/favorites/:favoriteId', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { favoriteId } = req.params;
+
+    const { error } = await supabase
+      .from('user_favorite_recipes')
+      .delete()
+      .eq('id', favoriteId)
+      .eq('user_id', userId);
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ message: 'Removed from favorites' });
+  } catch (error) {
+    console.error('Remove favorite error:', error);
+    res.status(500).json({ error: 'Failed to remove favorite' });
+  }
+});
+
 // Example: Update recipe (protected, user must own the recipe)
 router.put('/recipes/:id', authenticateUser, async (req, res) => {
   try {

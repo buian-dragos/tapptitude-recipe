@@ -46,5 +46,7 @@ export const API_ENDPOINTS = {
   PROFILE: `${API_CONFIG.BASE_URL}/api/profile`,
   RECIPES: `${API_CONFIG.BASE_URL}/api/recipes`,
   FAVORITES: `${API_CONFIG.BASE_URL}/api/favorites`,
+  REMOVE_FAVORITE: (favoriteId: string) => `${API_CONFIG.BASE_URL}/api/favorites/${favoriteId}`,
   AI_GENERATE: `${API_CONFIG.BASE_URL}/api/ai/generate`,
+  AI_REGENERATE: `${API_CONFIG.BASE_URL}/api/ai/regenerate`,
 };

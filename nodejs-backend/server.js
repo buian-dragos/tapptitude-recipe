@@ -5,6 +5,7 @@ require('dotenv').config();
 const supabase = require('./supabase');
 const { authenticateUser, optionalAuth } = require('./middleware/auth');
 const recipesRouter = require('./routes/recipes');
+const aiRouter = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -98,6 +99,9 @@ app.get('/api/public', (req, res) => {
 
 // Recipe routes
 app.use('/api', recipesRouter);
+
+// AI routes
+app.use('/api/ai', aiRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

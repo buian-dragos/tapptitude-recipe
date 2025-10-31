@@ -9,7 +9,8 @@ const isAndroidEmulator = Platform.OS === 'android' && !__DEV__;
 // API Base URLs
 const API_URLS = {
   // For Physical Device or Expo Go - use your computer's IP
-  LOCAL_NETWORK: 'http://192.168.1.43:3001',
+  // LOCAL_NETWORK: 'http://192.168.1.43:3001'
+   LOCAL_NETWORK: 'https://tapptitude-recipe.vercel.app/',
   
   // For Android Emulator
   ANDROID_EMULATOR: 'http://10.0.2.2:3001',

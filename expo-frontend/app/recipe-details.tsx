@@ -3,7 +3,6 @@ import {
   ScrollView,
   View,
   Pressable,
-  SafeAreaView,
   Image as RNImage,
   Alert,
   useWindowDimensions,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Box } from '@/components/ui/box';
 import { VStack } from '@/components/ui/vstack';
 import { Heading } from '@/components/ui/heading';
@@ -43,11 +43,11 @@ const formatCookingTime = (minutes: number): string => {
 export default function RecipeDetailsScreen() {
   const params = useLocalSearchParams();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [recipe, setRecipe] = useState<RecipeDetails | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteId, setFavoriteId] = useState<string | undefined>(undefined);
   
-  // Determine if screen is wide enough for side-by-side layout
   const isWideScreen = width >= 768;
 
   useEffect(() => {
@@ -139,11 +139,18 @@ export default function RecipeDetailsScreen() {
 
   if (!recipe) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: '#222831' }}>
+      <View 
+        className="flex-1" 
+        style={{ 
+          backgroundColor: '#222831',
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        }}
+      >
         <Box className="flex-1 justify-center items-center">
           <Text style={{ color: '#EEEEEE' }}>Loading...</Text>
         </Box>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -324,15 +331,18 @@ export default function RecipeDetailsScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: '#222831' }}>
+    <View 
+      className="flex-1" 
+      style={{ 
+        backgroundColor: '#222831',
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+      }}
+    >
       <View style={{ flex: 1, padding: 16, paddingTop: 48 }}>
         {isWideScreen ? (
-          // Wide screen layout: side-by-side with right column scrolling
           <View style={{ flex: 1, flexDirection: 'row', gap: 24 }}>
-            {/* Left Column - Static */}
             {renderLeftColumn()}
-
-            {/* Right Column - Scrollable */}
             <ScrollView
               style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
@@ -341,12 +351,8 @@ export default function RecipeDetailsScreen() {
             </ScrollView>
           </View>
         ) : (
-          // Small screen layout: header static, content scrolls
           <View style={{ flex: 1, gap: 16 }}>
-            {/* Header - Static */}
             {renderLeftColumn()}
-
-            {/* Content - Scrollable */}
             <ScrollView
               style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
@@ -356,6 +362,6 @@ export default function RecipeDetailsScreen() {
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ScrollView, View, Platform, Pressable, SafeAreaView, ActivityIndicator, Image as RNImage, Animated } from 'react-native';
+import { ScrollView, View, Platform, Pressable, ActivityIndicator, Image as RNImage, Animated, BackHandler } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Box } from '@/components/ui/box';
 import { VStack } from '@/components/ui/vstack';
 import { Heading } from '@/components/ui/heading';
@@ -77,9 +78,22 @@ export default function HomeScreen() {
   // Refresh favorites when screen comes into focus (e.g., returning from recipe details)
   useFocusEffect(
     React.useCallback(() => {
-      console.log('🔄 Home screen focused, syncing favorites...');
       syncFavoritesWithoutLoading();
-    }, [])
+
+      const backAction = () => {
+        if (searchQuery.trim()) {
+          handleClearSearch();
+        }
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        backAction
+      );
+
+      return () => backHandler.remove();
+    }, [searchQuery])
   );
 
   const fetchFavorites = async () => {
@@ -143,40 +157,27 @@ export default function HomeScreen() {
       const result = await response.json();
       const fetchedFavorites = result.data || [];
       
-      console.log('📊 Syncing favorites. Fetched:', fetchedFavorites.length, 'Suggested recipes:', suggestedRecipes.length);
-      
       // Update favorites list
       setFavorites(fetchedFavorites);
 
-      // Update suggested recipes to reflect favorite status changes
-      if (suggestedRecipes.length > 0) {
-        console.log('🔄 Updating suggested recipes favorite status...');
-        setSuggestedRecipes(prev => {
-          const updated = prev.map(recipe => {
-            // Check if this recipe is in the favorites list (match by name - most reliable since IDs can change)
-            const matchingFavorite = fetchedFavorites.find(
-              (fav: Recipe) => fav.name === recipe.name
-            );
-            
-            if (matchingFavorite) {
-              // Mark as favorited with the correct favoriteId and update ID if it changed
-              console.log('  ✅ Recipe', recipe.name, 'is favorited. FavoriteId:', matchingFavorite.favoriteId, 'RecipeId:', matchingFavorite.id);
-              return { 
-                ...recipe, 
-                id: matchingFavorite.id, // Update to real database ID
-                favoriteId: matchingFavorite.favoriteId 
-              };
-            } else if (recipe.favoriteId) {
-              // Was favorited before but no longer in favorites - remove favoriteId
-              console.log('  ❌ Recipe', recipe.name, 'removed from favorites');
-              return { ...recipe, favoriteId: undefined };
-            }
-            
-            return recipe;
-          });
-          return updated;
-        });
-      }
+      // Update suggested recipes to reflect favorite status changes.
+      // Always map the current suggestedRecipes state to avoid stale closures.
+      setSuggestedRecipes(prev =>
+        prev.map(recipe => {
+          const matchingFavorite = fetchedFavorites.find((fav: Recipe) => fav.name === recipe.name);
+          if (matchingFavorite) {
+            return {
+              ...recipe,
+              id: matchingFavorite.id,
+              favoriteId: matchingFavorite.favoriteId,
+            };
+          }
+          if (recipe.favoriteId) {
+            return { ...recipe, favoriteId: undefined };
+          }
+          return recipe;
+        })
+      );
     } catch (err) {
       console.error('Sync favorites error:', err);
     }
@@ -491,8 +492,16 @@ export default function HomeScreen() {
     } as any);
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView className="flex-1 bg-background-0">
+    <View 
+      className="flex-1 bg-background-0" 
+      style={{ 
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+      }}
+    >
       <VStack className="flex-1 p-6 pt-12" space="xl">
         {/* Search Bar - Static */}
         <Input
@@ -740,6 +749,6 @@ export default function HomeScreen() {
           </VStack>
         </ScrollView>
       </VStack>
-    </SafeAreaView>
+    </View>
   );
 }

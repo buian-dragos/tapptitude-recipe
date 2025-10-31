@@ -15,24 +15,22 @@ The app's UI is based on the provided [Figma Design](https://www.figma.com/desig
 ### AI-Powered Recipe Generation
 Users can type a natural language description (e.g., "a quick vegan pasta for dinner" or "healthy breakfast with eggs") into the prompt. The app sends this to the backend, which uses the Google Gemini REST API to generate a list of suitable recipes.
 
-Suggested Recipes:
-<img src=".github/assets/suggested.jpg" alt="Suggested Recipes" width="400">
+<img src=".github/assets/suggested.jpg" alt="Suggested Recipes" width="300">
 
 ### Smart Suggestions & "I don't like these"
 If the user isn't satisfied with the initial suggestions, they can tap the "I don't like these" button. This triggers a new request to the backend. To ensure fresh results, the app sends the IDs of the *previously shown recipes* so the AI can exclude them from the new batch.
 
-<img src=".github/assets/idontlike.png" alt="I don't like these feature" width="400">
+<img src=".github/assets/idontlike.png" alt="I don't like these feature" width="300">
 
 ### Favorite Management
 Users can easily save recipes to their personal favorites list. On the home screen, tapping the heart icon on any recipe card will add or remove it from their "Favorites" list, which can be viewed on a separate screen.
 
-Favorite Recipes:
-<img src=".github/assets/favorites.jpg" alt="Favorite Recipes" width="400">
+<img src=".github/assets/favorites.jpg" alt="Favorite Recipes" width="300">
 
 ### Loading Skeletons
 To improve the user experience, skeleton loaders are displayed while the recipes are being fetched from the backend. This gives the user immediate visual feedback that content is on its way, making the app feel more responsive.
 
-<img src=".github/assets/skeleton.jpg" alt="Loading Skeleton" width="400">
+<img src=".github/assets/skeleton.jpg" alt="Loading Skeleton" width="300">
 
 ### Adaptive Recipe Details Screen
 The recipe details screen is fully responsive and provides two distinct layouts to ensure a great user experience on any device size. The top portion (name, image, cooking time) is static, while the bottom portion (ingredients, instructions) is scrollable.
@@ -42,12 +40,12 @@ The recipe details screen is fully responsive and provides two distinct layouts 
 
 **Vertical Layout**
 <br>
-<img src=".github/assets/details_ingredients.jpg" alt="Vertical Ingredients" width="400">
-<img src=".github/assets/details_instructions.jpg" alt="Vertical Instructions" width="400">
+<img src=".github/assets/details_ingredients.jpg" alt="Vertical Ingredients" width="300">
+<img src=".github/assets/details_instructions.jpg" alt="Vertical Instructions" width="300">
 
 **Horizontal Layout**
 <br>
-<img src=".github/assets/details_horizontal.png" alt="Horizontal Layout" width="700">
+<img src=".github/assets/details_widepng.png" alt="Horizontal Layout" width="700">
 
 ---
 

@@ -28,7 +28,12 @@ const API_URLS = {
 // - 'ANDROID_EMULATOR' for Android Studio emulator
 // - 'IOS_SIMULATOR' for iOS simulator
 const getBaseUrl = () => {
-  // Always use production Vercel backend for all platforms
+  if (Platform.OS === 'web') {
+    // Web always uses local backend
+    return API_URLS.IOS_SIMULATOR;
+  }
+  
+  // Mobile uses production Vercel backend
   return API_URLS.LOCAL_NETWORK;
 };
 

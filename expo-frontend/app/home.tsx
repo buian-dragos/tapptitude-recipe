@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Platform, Pressable, SafeAreaView, ActivityIndicator, Image as RNImage } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { ScrollView, View, Platform, Pressable, SafeAreaView, ActivityIndicator, Image as RNImage, Animated } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Box } from '@/components/ui/box';
@@ -43,6 +43,31 @@ export default function HomeScreen() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const [isSearchMode, setIsSearchMode] = useState(false);
+  
+  // Animation for skeleton loaders
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (searching) {
+      // Start pulsing animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(0);
+    }
+  }, [searching]);
 
   // Fetch user's favorite recipes on mount
   useEffect(() => {
@@ -515,7 +540,7 @@ export default function HomeScreen() {
         >
           <VStack space="md">
             {/* Loading State */}
-            {(loading || searching) ? (
+            {loading ? (
               <View className="py-8 items-center">
                 <ActivityIndicator size="large" color="#76ABAE" />
               </View>
@@ -526,7 +551,44 @@ export default function HomeScreen() {
               </Box>
             ) : isSearchMode ? (
               /* Suggested Recipes List */
-              suggestedRecipes.length === 0 ? (
+              searching ? (
+                /* Skeleton Loaders for suggested recipes */
+                <VStack space="md">
+                  {[1, 2, 3, 4, 5].map((index) => {
+                    const opacity = pulseAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1],
+                    });
+
+                    return (
+                      <View
+                        key={`skeleton-${index}`}
+                        className="p-3 rounded-lg bg-background-50 flex-row items-center"
+                      >
+                        {/* Skeleton Image */}
+                        <Animated.View style={{ opacity }}>
+                          <Box className="w-16 h-16 bg-background-200 rounded-md mr-3" />
+                        </Animated.View>
+
+                        {/* Skeleton Text Content */}
+                        <VStack className="flex-1" space="xs">
+                          <Animated.View style={{ opacity }}>
+                            <Box className="h-5 bg-background-200 rounded" style={{ width: '70%' }} />
+                          </Animated.View>
+                          <Animated.View style={{ opacity }}>
+                            <Box className="h-4 bg-background-200 rounded" style={{ width: '40%' }} />
+                          </Animated.View>
+                        </VStack>
+
+                        {/* Skeleton Heart Icon */}
+                        <Animated.View style={{ opacity }}>
+                          <Box className="w-6 h-6 bg-background-200 rounded-full" />
+                        </Animated.View>
+                      </View>
+                    );
+                  })}
+                </VStack>
+              ) : suggestedRecipes.length === 0 ? (
                 <Box className="py-8 items-center">
                   <Text className="text-typography-600 text-center text-base">
                     No recipes found. Try a different search.
